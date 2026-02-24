@@ -375,7 +375,7 @@ export function createMCPServer(
       description:
         "Manage the shopping cart. Three actions available: " +
         "action='add' — Add a product variant to cart. Requires `variantId` (a Shopify variant GID, e.g. 'gid://shopify/ProductVariant/123'), NOT a product ID. Optional `quantity` (defaults to 1). " +
-        "action='view' — Show current cart contents with items, quantities, and totals. " +
+        "action='view' — Show current cart contents with items, quantities, and totals. ONLY call this when the user explicitly asks to see their cart. Do NOT call this after showing search results, product details, or adding items. Exception: call immediately before action='update' if you do not have the lineId. " +
         "action='update' — Change quantity of a line item. Requires `lineId` (from previous 'view' results) + `quantity`. Set quantity=0 to remove the item. " +
         "The server automatically tracks the cart for this conversation — you do NOT need to pass `cartId`. Just call the action directly. " +
         "BEFORE calling with action='add': If the product has multiple variants (sizes, colors), ask the customer which one they want. Do NOT pick a variant for them unless they clearly specified. " +
