@@ -354,9 +354,9 @@ const FOLLOWUP_MAP: Record<string, (ctx: Record<string, any>) => string> = {
   search_products: (ctx) => {
     const count = ctx.totalCount ?? ctx.products?.length ?? 0;
     if (count === 0) {
-      return "No products matched. Suggest broadening the search or browsing all products. Ask if the customer wants to try different terms.";
+      return "No products matched. Suggest broadening the search or browsing all products. Ask if the customer wants to try different terms. Do NOT call search_products again for the same query — present this result and offer alternatives.";
     }
-    return `Found ${count} product(s). Present 2-3 standout items conversationally — don't list all results. Mention what makes each special (price, feature, bestseller status). Ask if the customer wants details on any product or wants to add something to their cart.`;
+    return `Found ${count} product(s). Present 2-3 standout items conversationally — don't list all results. Mention what makes each special (price, feature, bestseller status). Ask if the customer wants details on any product or wants to add something to their cart. IMPORTANT: You now have the search results above. Do NOT call search_products again for this query — even on the next message. Present what was returned and ask follow-up questions instead.`;
   },
 
   get_product: (ctx) => {

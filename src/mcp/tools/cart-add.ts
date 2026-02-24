@@ -68,28 +68,35 @@ export function clearSessionMapping(sseSessionId: string): void {
 }
 
 // ── Turn tracker ──────────────────────────────────────────────────────────────
-// Tracks which tools have been called within the current conversational turn
-// (time window) per session. Used to suppress redundant manage_cart:view calls.
+// Tracks how many times each tool has been called within the current turn
+// (time window) per session. Count-based so we can detect the 2nd+ call.
 
 const TURN_WINDOW_MS = 3000;
-const turnTracker = new Map<string, { tools: Set<string>; timer: ReturnType<typeof setTimeout> }>();
+const turnTracker = new Map<string, { tools: Map<string, number>; timer: ReturnType<typeof setTimeout> }>();
 
 export function recordTurnTool(sseSessionId: string, toolName: string): void {
   const existing = turnTracker.get(sseSessionId);
   if (existing) {
     clearTimeout(existing.timer);
-    existing.tools.add(toolName);
+    existing.tools.set(toolName, (existing.tools.get(toolName) ?? 0) + 1);
     existing.timer = setTimeout(() => turnTracker.delete(sseSessionId), TURN_WINDOW_MS);
   } else {
     const timer = setTimeout(() => turnTracker.delete(sseSessionId), TURN_WINDOW_MS);
-    turnTracker.set(sseSessionId, { tools: new Set([toolName]), timer });
+    turnTracker.set(sseSessionId, { tools: new Map([[toolName, 1]]), timer });
   }
+}
+
+/** Returns true if toolKey has been called more than once in the current turn window. */
+export function isDuplicateTool(sseSessionId: string, toolKey: string): boolean {
+  const tracker = turnTracker.get(sseSessionId);
+  if (!tracker) return false;
+  return (tracker.tools.get(toolKey) ?? 0) > 1;
 }
 
 export function isRedundantCartView(sseSessionId: string): boolean {
   const tracker = turnTracker.get(sseSessionId);
   if (!tracker) return false;
-  for (const name of tracker.tools) {
+  for (const name of tracker.tools.keys()) {
     if (name !== "manage_cart:view") return true;
   }
   return false;

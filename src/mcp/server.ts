@@ -25,7 +25,7 @@ import {
   getCheckoutUrlInput,
   getCheckoutUrl,
 } from "./tools/get-checkout-url.js";
-import { getConversationId, isRedundantCartView } from "./tools/cart-add.js";
+import { getConversationId, isRedundantCartView, isDuplicateTool } from "./tools/cart-add.js";
 import { z } from "zod";
 
 // ── MIME type for widget resources (MCP Apps standard) ──
@@ -262,7 +262,7 @@ export function createMCPServer(
         "NOTE: It is OK if not every detail is provided — leave optional parameters null and present what's available. " +
         "When to use: User wants to find products, browse catalog, explore a collection. " +
         "When NOT to use: You already have the exact product handle — use get_product instead. " +
-        "Call rules: Once per assistant turn per category. Do not call redundantly for the same intent.",
+        "Call rules: Once per assistant turn per category. If you already called this tool and have results, NEVER call it again — use the results you have.",
       inputSchema: searchProductsInput.shape,
       annotations: {
         readOnlyHint: true,
@@ -274,6 +274,17 @@ export function createMCPServer(
     },
     async (args: any) => {
       const t0 = Date.now();
+
+      // Suppress duplicate search_products calls in the same turn window.
+      // recordTurnTool() is called by the POST /mcp/messages handler before dispatch,
+      // so count > 1 means this is a repeat call within the same 3s window.
+      if (sessionId && isDuplicateTool(sessionId, "search_products")) {
+        console.log(`[mcp] search_products suppressed — duplicate call in same turn | session=${sessionId} | query=${args.query ?? "*"}`);
+        return {
+          content: [{ type: "text" as const, text: '{"suppressed":true,"reason":"Duplicate search_products call in the same turn — use the results already returned this turn."}' }],
+        };
+      }
+
       console.log(`[mcp] tool:search_products called`, { storeId: storeConfig.shopifyDomain, args: Object.keys(args) });
       const result = await searchProducts(client, args);
       const elapsed = Date.now() - t0;
